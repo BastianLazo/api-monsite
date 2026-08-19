@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-# Instalar dependencias del sistema necesarias para Pillow y ONNX Runtime
+# Instalar dependencias del sistema necesarias
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libsm6 \
@@ -13,6 +13,11 @@ WORKDIR /app
 
 # Copiar requirements primero (para aprovechar caché)
 COPY requirements.txt .
+
+# Actualizar pip y setuptools primero
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Instalar dependencias (usando una versión de ONNX Runtime compatible)
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar el resto del código
