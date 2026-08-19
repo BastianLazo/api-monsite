@@ -1,30 +1,28 @@
 FROM python:3.11-slim
 
-# Instalar dependencias del sistema necesarias
+# Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender-dev \
     libgomp1 \
+    libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copiar requirements primero (para aprovechar caché)
 COPY requirements.txt .
 
-# Actualizar pip y setuptools primero
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+# Instalar dependencias
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Instalar dependencias (usando una versión de ONNX Runtime compatible)
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copiar el resto del código
 COPY . .
 
-# Exponer el puerto
+# Configurar variables de entorno para ONNX Runtime
+ENV ONNX_RUNTIME_EXECUTION_PROVIDER=CPUExecutionProvider
+
 EXPOSE 8000
 
-# Comando para ejecutar la API
 CMD uvicorn api:app --host 0.0.0.0 --port $PORT
