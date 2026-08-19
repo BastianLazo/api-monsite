@@ -20,9 +20,6 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 
 COPY . .
 
-# Configurar variables de entorno para ONNX Runtime
-ENV ONNX_RUNTIME_EXECUTION_PROVIDER=CPUExecutionProvider
-
 EXPOSE 8000
 
 CMD uvicorn api:app --host 0.0.0.0 --port $PORT
