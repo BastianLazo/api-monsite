@@ -17,32 +17,40 @@ app = FastAPI(title="Monsite IA - Clasificador de Cabello")
 MODEL_PATH = "hair_type_classifier.onnx"
 CLASSES = ['curly', 'dreadlocks', 'kinky', 'straight', 'wavy']
 
-# 3. Cargar modelo ONNX (al iniciar el servidor)
+# 3. Cargar modelo ONNX con configuración específica
 print(f"📁 Cargando modelo desde: {MODEL_PATH}")
 
 if not os.path.exists(MODEL_PATH):
-    print("❌ Modelo no encontrado. Verifica que esté en la raíz del proyecto")
+    print("❌ Modelo no encontrado")
     session = None
 else:
-    session = ort.InferenceSession(MODEL_PATH)
-    print("✅ Modelo ONNX cargado correctamente")
+    try:
+        # Configuración para evitar problemas de ejecución
+        sess_options = ort.SessionOptions()
+        sess_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+        sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        
+        # Crear sesión con los providers disponibles
+        providers = ['CPUExecutionProvider']
+        session = ort.InferenceSession(
+            MODEL_PATH, 
+            sess_options=sess_options,
+            providers=providers
+        )
+        print("✅ Modelo ONNX cargado correctamente")
+    except Exception as e:
+        print(f"❌ Error al cargar modelo: {e}")
+        session = None
 
-# 4. Función de preprocesamiento
 def preprocesar_imagen(imagen_bytes):
-    # Abrir imagen
     img = Image.open(io.BytesIO(imagen_bytes))
-    # Redimensionar
     img = img.resize((224, 224))
-    # Convertir a array
     img_array = np.array(img).astype(np.float32)
-    # Normalización ResNet50
     img_array = img_array / 255.0
     img_array = (img_array - 0.5) * 2
-    # Cambiar formato (batch, height, width, channels)
     img_array = np.expand_dims(img_array, axis=0)
     return img_array
 
-# 5. Endpoint de predicción
 @app.post("/predecir")
 async def predecir(file: UploadFile = File(...)):
     if session is None:
@@ -52,18 +60,11 @@ async def predecir(file: UploadFile = File(...)):
         }, status_code=500)
     
     try:
-        # Leer imagen
         imagen_bytes = await file.read()
-        
-        # Preprocesar
         img_array = preprocesar_imagen(imagen_bytes)
-        
-        # Ejecutar modelo ONNX
         inputs = {session.get_inputs()[0].name: img_array}
         outputs = session.run(None, inputs)
         prediccion = outputs[0][0]
-        
-        # Interpretar resultado
         clase_idx = int(np.argmax(prediccion))
         clase_nombre = CLASSES[clase_idx]
         confianza = float(np.max(prediccion))
@@ -85,7 +86,6 @@ async def predecir(file: UploadFile = File(...)):
             "mensaje": str(e)
         }, status_code=400)
 
-# 6. Endpoint de salud
 @app.get("/health")
 async def health():
     return {
@@ -94,14 +94,9 @@ async def health():
         "clases": CLASSES
     }
 
-# 7. Endpoint raíz
 @app.get("/")
 async def root():
     return {
         "mensaje": "API Monsite - Clasificador de Cabello",
-        "endpoints": [
-            {"path": "/", "metodo": "GET", "descripcion": "Información de la API"},
-            {"path": "/health", "metodo": "GET", "descripcion": "Verificar estado"},
-            {"path": "/predecir", "metodo": "POST", "descripcion": "Subir imagen para clasificar"}
-        ]
+        "endpoints": ["/", "/health", "/predecir"]
     }
