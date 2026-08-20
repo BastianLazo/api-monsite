@@ -16,7 +16,7 @@ import os
 app = FastAPI(title="Monsite IA - Clasificador de Cabello")
 
 # 2. Configuración
-MODEL_PATH = "hair_type_classifier.keras"
+MODEL_PATH = "hair_type_classifier.h5" 
 CLASSES = ['curly', 'dreadlocks', 'kinky', 'straight', 'wavy']
 
 # 3. Cargar modelo TensorFlow
